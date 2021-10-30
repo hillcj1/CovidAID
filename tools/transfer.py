@@ -4,6 +4,7 @@ Code to transfer weights from CheXNet (torch 0.3) to CovidAID
 
 import sys
 from covidaid import CovidAID, CheXNet
+from os.path import exists
 import torch
 import argparse
 
@@ -11,6 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--combine_pneumonia", action='store_true', default=False)
 parser.add_argument("--chexnet_model_checkpoint", "--old", type=str, default="./data/CheXNet_model.pth.tar")
 parser.add_argument("--covidaid_model_trained_checkpoint", "--new", type=str, default="./models/CovidAID_transfered.pth.tar")
+parser.add_argument("--cpu", action='store_true', default=False)
 args = parser.parse_args()
 
 chexnet_model_checkpoint = args.chexnet_model_checkpoint
@@ -19,8 +21,11 @@ covidaid_model_trained_checkpoint = args.covidaid_model_trained_checkpoint
 model = CovidAID(combine_pneumonia=args.combine_pneumonia)
 
 def load_weights(checkpoint_pth, state_dict=True):
-    model = torch.load(checkpoint_pth)
-    
+    if args.cpu:
+        model = torch.load(checkpoint_pth,map_location=torch.device('cpu'))
+    else:
+        model = torch.load(checkpoint_pth)
+
     if state_dict:
         return model['state_dict']
     else:
