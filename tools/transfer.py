@@ -30,6 +30,7 @@ def load_weights(checkpoint_pth, state_dict=True):
         return model['state_dict']
     else:
         return model
+        #return nn.DataParallel(model)
 
 def get_top_keys(model, depth=0):
     return set({w.split('.')[depth] for w in model.keys()})
