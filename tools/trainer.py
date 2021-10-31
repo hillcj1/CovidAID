@@ -34,7 +34,8 @@ class Trainer:
         self.distributed = True if local_rank is not None else False
         print ("Distributed training %s" % ('ON' if self.distributed else 'OFF'))
         if cpu:
-            self.device = torch.device('cpu')
+            pass
+            #self.device = torch.device('cpu')
         elif self.distributed:
             raise NotImplementedError("Currently distributed training not supported")
             self.device = torch.cuda.device('cuda', local_rank)
@@ -45,10 +46,10 @@ class Trainer:
         self.combine_pneumonia = combine_pneumonia
 
         if cpu:
-            self.net = CovidAID().to(self.device)
+            self.net = CovidAID(combine_pneumonia)
         else:
             self.net = CovidAID(combine_pneumonia).cuda()
-            
+
         if self.distributed:
             self.net = torch.nn.parallel.DistributedDataParallel(self.net,
                                                             device_ids=[local_rank],
@@ -122,8 +123,8 @@ class Trainer:
             for i, (inputs, target) in tqdm(enumerate(train_loader), total=len(train_dataset)/BATCH_SIZE):
                 # inputs = inputs.to(self.device)
                 # target = target.to(self.device)
-                inputs = inputs.cuda()
-                target = target.cuda()
+                # inputs = inputs.cuda()
+                # target = target.cuda()
 
                 # Shape of input == [BATCH_SIZE, NUM_CROPS=19, CHANNELS=3, HEIGHT=224, WIDTH=244]
                 bs, n_crops, c, h, w = inputs.size()
@@ -144,7 +145,8 @@ class Trainer:
             tot_loss /= len(train_dataset)
 
             # Clear cache
-            torch.cuda.empty_cache()
+            #torch.cuda.empty_cache()
+            torch.empty_cache()
 
             # Running on validation set
             self.net.eval()
@@ -152,8 +154,8 @@ class Trainer:
             for i, (inputs, target) in tqdm(enumerate(val_loader), total=len(val_dataset)/BATCH_SIZE):
                 # inputs = inputs.to(self.device)
                 # target = target.to(self.device)
-                inputs = inputs.cuda()
-                target = target.cuda()
+                # inputs = inputs.cuda()
+                # target = target.cuda()
 
                 # Shape of input == [BATCH_SIZE, NUM_CROPS=19, CHANNELS=3, HEIGHT=224, WIDTH=244]
                 bs, n_crops, c, h, w = inputs.size()
@@ -170,7 +172,8 @@ class Trainer:
             val_loss /= len(val_dataset)
 
             # Clear cache
-            torch.cuda.empty_cache()
+            #torch.cuda.empty_cache()
+            torch.empty_cache()
 
             # logging statistics
             timestamp = str(datetime.datetime.now()).split('.')[0]
@@ -221,8 +224,10 @@ class Trainer:
                                 shuffle=True, num_workers=8, pin_memory=True)
 
         # initialize the ground truth and output tensor
-        gt = torch.FloatTensor().cuda()
-        pred = torch.FloatTensor().cuda()
+        # gt = torch.FloatTensor().cuda()
+        # pred = torch.FloatTensor().cuda()
+        gt = torch.FloatTensor()
+        pred = torch.FloatTensor()
 
         # switch to evaluate mode
         self.net.eval()
@@ -230,8 +235,8 @@ class Trainer:
         for i, (inputs, target) in tqdm(enumerate(test_loader), total=len(test_loader)):
             # inputs = inputs.to(self.device)
             # target = target.to(self.device)
-            inputs = inputs.cuda()
-            target = target.cuda()
+            # inputs = inputs.cuda()
+            # target = target.cuda()
             gt = torch.cat((gt, target), 0)
 
             # Shape of input == [BATCH_SIZE, NUM_CROPS=19, CHANNELS=3, HEIGHT=224, WIDTH=244]

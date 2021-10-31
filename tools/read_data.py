@@ -101,7 +101,7 @@ class ChestXrayDataSet(Dataset):
             self.num_normal = int(self.num_covid * covid_factor)
             self.num_pneumonia = int(self.num_covid * covid_factor)
             self.total = self.num_covid + self.num_pneumonia + self.num_normal
-            self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_pneumonia, self.num_covid]).unsqueeze(0).cuda() / self.total
+            self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_pneumonia, self.num_covid]).unsqueeze(0) / self.total #.cuda()
             self.loss_weight_plus = 1.0 - self.loss_weight_minus
         else:
             covid_factor = 5.0
@@ -109,7 +109,7 @@ class ChestXrayDataSet(Dataset):
             self.num_viral = int(self.num_covid * covid_factor)
             self.num_bact = int(self.num_covid * covid_factor)
             self.total = self.num_covid + self.num_viral + self.num_bact + self.num_normal
-            self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_bact, self.num_viral, self.num_covid]).unsqueeze(0).cuda() / self.total
+            self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_bact, self.num_viral, self.num_covid]).unsqueeze(0) / self.total #.cuda()
             self.loss_weight_plus = 1.0 - self.loss_weight_minus
 
         # print (self.loss_weight_plus, self.loss_weight_minus)
@@ -171,13 +171,13 @@ class ChestXrayDataSet(Dataset):
         """
         Binary weighted cross-entropy loss for each class
         """
-        weight_plus = torch.autograd.Variable(self.loss_weight_plus.repeat(1, target.size(0)).view(-1, self.loss_weight_plus.size(1)).cuda())
-        weight_neg = torch.autograd.Variable(self.loss_weight_minus.repeat(1, target.size(0)).view(-1, self.loss_weight_minus.size(1)).cuda())
+        weight_plus = torch.autograd.Variable(self.loss_weight_plus.repeat(1, target.size(0)).view(-1, self.loss_weight_plus.size(1))) #.cuda()
+        weight_neg = torch.autograd.Variable(self.loss_weight_minus.repeat(1, target.size(0)).view(-1, self.loss_weight_minus.size(1))) #.cuda()
 
         loss = output
         pmask = (target >= 0.5).data
         nmask = (target < 0.5).data
-        
+
         epsilon = 1e-15
         loss[pmask] = (loss[pmask] + epsilon).log() * weight_plus[pmask]
         loss[nmask] = (1-loss[nmask] + epsilon).log() * weight_plus[nmask]

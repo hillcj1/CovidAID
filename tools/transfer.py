@@ -22,7 +22,7 @@ model = CovidAID(combine_pneumonia=args.combine_pneumonia)
 
 def load_weights(checkpoint_pth, state_dict=True):
     if args.cpu:
-        model = torch.load(checkpoint_pth,map_location=torch.device('cpu'))
+        model = torch.load(checkpoint_pth, map_location=lambda storage, loc: storage) #map_location=torch.device('cpu'))
     else:
         model = torch.load(checkpoint_pth)
 
@@ -47,6 +47,10 @@ assert get_top_keys(template, depth=1) == set({'features', 'classifier'})
 
 c_keys = {k for k in chexnet_model.keys()}
 t_keys = {'module.' + k for k in template.keys()}
+
+print(c_keys)
+print('\n\n----\n\n')
+print(t_keys)
 
 assert len(c_keys.difference(t_keys)) == 0
 assert len(t_keys.difference(c_keys)) == 0
