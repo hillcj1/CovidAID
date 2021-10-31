@@ -32,10 +32,10 @@ class Trainer:
         Trainer for the CovidAID
         """
         self.distributed = True if local_rank is not None else False
+        self.cpu = cpu
         print ("Distributed training %s" % ('ON' if self.distributed else 'OFF'))
         if cpu:
             pass
-            #self.device = torch.device('cpu')
         elif self.distributed:
             raise NotImplementedError("Currently distributed training not supported")
             self.device = torch.cuda.device('cuda', local_rank)
@@ -76,7 +76,8 @@ class Trainer:
                                             transforms.Lambda
                                             (lambda crops: torch.stack([normalize(crop) for crop in crops]))
                                         ]),
-                                        combine_pneumonia=self.combine_pneumonia)
+                                        combine_pneumonia=self.combine_pneumonia,
+                                        cpu=self.cpu)
         if self.distributed:
             sampler = DistributedSampler(train_dataset)
             train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE,
@@ -123,8 +124,9 @@ class Trainer:
             for i, (inputs, target) in tqdm(enumerate(train_loader), total=len(train_dataset)/BATCH_SIZE):
                 # inputs = inputs.to(self.device)
                 # target = target.to(self.device)
-                # inputs = inputs.cuda()
-                # target = target.cuda()
+                if not self.cpu:
+                    inputs = inputs.cuda()
+                    target = target.cuda()
 
                 # Shape of input == [BATCH_SIZE, NUM_CROPS=19, CHANNELS=3, HEIGHT=224, WIDTH=244]
                 bs, n_crops, c, h, w = inputs.size()
@@ -145,8 +147,8 @@ class Trainer:
             tot_loss /= len(train_dataset)
 
             # Clear cache
-            #torch.cuda.empty_cache()
-            torch.empty_cache()
+            if not self.cpu:
+                torch.cuda.empty_cache()
 
             # Running on validation set
             self.net.eval()
@@ -154,8 +156,9 @@ class Trainer:
             for i, (inputs, target) in tqdm(enumerate(val_loader), total=len(val_dataset)/BATCH_SIZE):
                 # inputs = inputs.to(self.device)
                 # target = target.to(self.device)
-                # inputs = inputs.cuda()
-                # target = target.cuda()
+                if not self.cpu:
+                    inputs = inputs.cuda()
+                    target = target.cuda()
 
                 # Shape of input == [BATCH_SIZE, NUM_CROPS=19, CHANNELS=3, HEIGHT=224, WIDTH=244]
                 bs, n_crops, c, h, w = inputs.size()
@@ -172,8 +175,8 @@ class Trainer:
             val_loss /= len(val_dataset)
 
             # Clear cache
-            #torch.cuda.empty_cache()
-            torch.empty_cache()
+            if not self.cpu:
+                torch.cuda.empty_cache()
 
             # logging statistics
             timestamp = str(datetime.datetime.now()).split('.')[0]
@@ -224,10 +227,12 @@ class Trainer:
                                 shuffle=True, num_workers=8, pin_memory=True)
 
         # initialize the ground truth and output tensor
-        # gt = torch.FloatTensor().cuda()
-        # pred = torch.FloatTensor().cuda()
-        gt = torch.FloatTensor()
-        pred = torch.FloatTensor()
+        if self.cpu:
+            gt = torch.FloatTensor()
+            pred = torch.FloatTensor()
+        else:
+            gt = torch.FloatTensor().cuda()
+            pred = torch.FloatTensor().cuda()
 
         # switch to evaluate mode
         self.net.eval()
@@ -235,8 +240,9 @@ class Trainer:
         for i, (inputs, target) in tqdm(enumerate(test_loader), total=len(test_loader)):
             # inputs = inputs.to(self.device)
             # target = target.to(self.device)
-            # inputs = inputs.cuda()
-            # target = target.cuda()
+            if not self.cpu:
+                inputs = inputs.cuda()
+                target = target.cuda()
             gt = torch.cat((gt, target), 0)
 
             # Shape of input == [BATCH_SIZE, NUM_CROPS=19, CHANNELS=3, HEIGHT=224, WIDTH=244]
