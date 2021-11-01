@@ -78,7 +78,6 @@ class ChestXrayDataSet(Dataset):
         """
         self.NUM_CLASSES = 3 if combine_pneumonia else 4
         self.cpu = cpu
-        print("dataset: " + str(cpu))
 
         # Set of images for each class
         image_names = [[] for _ in range(self.NUM_CLASSES)]
@@ -149,7 +148,7 @@ class ChestXrayDataSet(Dataset):
             return v
 
         image_name = None
-        # print (index, self.partitions, len(self), sum([len(cnames) for cnames in self.image_names]))
+        print (index, len(self.partitions), self.NUM_CLASSES, sum([len(cnames) for cnames in self.image_names]))
         if index < self.partitions[0]:
             # Return a covid image
             data_idx = index
