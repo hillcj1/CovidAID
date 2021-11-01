@@ -78,6 +78,7 @@ class ChestXrayDataSet(Dataset):
         """
         self.NUM_CLASSES = 3 if combine_pneumonia else 4
         self.cpu = cpu
+        print("dataset: " + str(cpu))
 
         # Set of images for each class
         image_names = [[] for _ in range(self.NUM_CLASSES)]

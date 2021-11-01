@@ -78,6 +78,7 @@ class Trainer:
                                         ]),
                                         combine_pneumonia=self.combine_pneumonia,
                                         cpu=self.cpu)
+
         if self.distributed:
             sampler = DistributedSampler(train_dataset)
             train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE,
@@ -96,7 +97,8 @@ class Trainer:
                                             transforms.Lambda
                                             (lambda crops: torch.stack([normalize(crop) for crop in crops]))
                                         ]),
-                                        combine_pneumonia=self.combine_pneumonia)
+                                        combine_pneumonia=self.combine_pneumonia,
+                                        cpu=self.cpu)
         if self.distributed:
             sampler = DistributedSampler(val_dataset)
             val_loader = DataLoader(dataset=val_dataset, batch_size=BATCH_SIZE,
