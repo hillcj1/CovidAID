@@ -148,7 +148,7 @@ class ChestXrayDataSet(Dataset):
             return v
 
         image_name = None
-        print (index, len(self.partitions), self.NUM_CLASSES, sum([len(cnames) for cnames in self.image_names]))
+        #print (index, len(self.partitions), self.NUM_CLASSES, sum([len(cnames) for cnames in self.image_names]))
         if index < self.partitions[0]:
             # Return a covid image
             data_idx = index
