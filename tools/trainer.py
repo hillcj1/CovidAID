@@ -414,7 +414,7 @@ class Trainer:
     def load_model(self, checkpoint_path, model=None):
         print ("Loading model from %s" % checkpoint_path)
         if model is None: model = self.net
-        model.load_state_dict(torch.load(checkpoint_path))
+        model.load_state_dict(torch.load(checkpoint_path, map_location='cpu'))
 
 
 if __name__ == '__main__':
@@ -431,6 +431,7 @@ if __name__ == '__main__':
     parser.add_argument("--cm_path", type=str, default='plots/cm')
     parser.add_argument("--roc_path", type=str, default='plots/roc')
     parser.add_argument("--cpu", action='store_true', default=False)
+    parser.add_argument("--epochs", type=int, default=300)
 
     # parser.add_argment("--torch_version", "--tv", choices=["0.3", "new"], default="0.3")
     args = parser.parse_args()
@@ -449,7 +450,7 @@ if __name__ == '__main__':
         trainer.evaluate(TEST_IMAGE_LIST, cm_path=args.cm_path, roc_path=args.roc_path)
     elif args.mode == 'train':
         assert args.save is not None
-        trainer.train(TRAIN_IMAGE_LIST, VAL_IMAGE_LIST, BATCH_SIZE=args.bs, NUM_EPOCHS=300, LR=args.lr,
+        trainer.train(TRAIN_IMAGE_LIST, VAL_IMAGE_LIST, BATCH_SIZE=args.bs, NUM_EPOCHS=args.epochs, LR=args.lr,
                         start_epoch=args.start, save_path=args.save, freeze_feature_layers=args.freeze)
     else:
         trainer.F1(TEST_DIR, 'models/samples.txt')

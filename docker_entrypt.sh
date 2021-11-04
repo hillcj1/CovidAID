@@ -10,17 +10,20 @@ mkdir -p saved_models
     --freeze \
     --checkpoint models/CovidAID_transfered.pth.tar \
     --bs 16 \
-    --save saved_models
+    --save saved_models \
+    --epochs 10
 # python tools/trainer.py \
 #     --mode train \
 #     --checkpoint <PATH_TO_BEST_MOMDEL> \
 #     --bs 8 \
 #     --save saved_models
-# python tools/trainer.py \
-#     --mode test \
-#     --checkpoint <PATH_TO_BEST_MODEL> \
-#     --cm_path plots/cm_best \
-#     --roc_path plots/roc_best
+/usr/bin/python3.6 tools/trainer.py \
+    --combine_pneumonia \
+    --cpu \
+    --mode test \
+    --checkpoint models/CovidAID_transfered.pth.tar \
+    --cm_path plots/cm_best \
+    --roc_path plots/roc_best
 # python tools/inference.py \
 #     --img_dir <IMG_DIR> \
 #     --checkpoint <BEST_MODEL_PTH>
