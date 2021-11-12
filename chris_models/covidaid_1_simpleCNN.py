@@ -19,7 +19,7 @@ class DenseNet121(nn.Module):
         self.densenet121 = torchvision.models.densenet121(pretrained=True)
         num_ftrs = self.densenet121.classifier.in_features
 
-        self.conv1 = torch.nn.Conv1d(num_ftrs, 64, 1, 1)
+        self.conv1 = torch.nn.Conv1d(1000, 64, 1, 1)
         self.dropout = torch.nn.Dropout(0.5)
         self.relu = torch.nn.ReLU()
         self.batch = torch.nn.BatchNorm1d(64)
