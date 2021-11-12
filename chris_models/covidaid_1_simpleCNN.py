@@ -24,28 +24,18 @@ class DenseNet121(nn.Module):
         self.relu = torch.nn.ReLU()
         self.batch = torch.nn.BatchNorm1d(64)
 
-        self.fc1 = torch.nn.Linear(14400, 128)
+        self.fc1 = torch.nn.Linear(64, 128)
         self.fc2 = torch.nn.Linear(128, out_size)
         self.sig = torch.nn.Sigmoid()
 
     def forward(self, x):
-        print("Initial shape: " + str(x.shape))
         x = self.densenet121(x)
-        print("After DenseNet: " + str(x.shape))
         x = x[:, :, np.newaxis]
-        print("After Reshape: " + str(x.shape))
         x = self.conv1(x)
-        print("After Conv1: " + str(x.shape))
         x = self.dropout(x)
-        print("After Dropout: " + str(x.shape))
         x = self.relu(x)
-        print("After ReLU: " + str(x.shape))
-        #x = self.pool(x)
         x = self.batch(x)
-        print("After Batch: " + str(x.shape))
-        b = x.shape[0]
-        x = torch.reshape(x, (b, int(28800 / b)))
-        print("After Reshape2: " + str(x.shape))
+        x = x[:, :, 0]
         x = self.fc1(x)
         x = self.relu(x)
         x = self.fc2(x)
