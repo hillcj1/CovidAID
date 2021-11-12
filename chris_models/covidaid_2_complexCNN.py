@@ -36,6 +36,7 @@ class DenseNet121(nn.Module):
         self.sig = torch.nn.Sigmoid()
 
     def forward(self, x):
+        x = self.densenet121(x)
         x = self.conv1(x)
         x = self.dropout(x)
         x = self.relu(x)

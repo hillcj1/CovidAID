@@ -25,6 +25,7 @@ class DenseNet121(nn.Module):
 
 
     def forward(self, x):
+        x = self.densenet121(x)
         x = self.googlenet(x)
         x = x.logits
         b = x.shape[0]

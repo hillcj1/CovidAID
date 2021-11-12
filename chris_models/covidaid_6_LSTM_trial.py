@@ -30,6 +30,7 @@ class DenseNet121(nn.Module):
 
 
     def forward(self, x):
+        x = self.densenet121(x)
         h_0 = Variable(torch.zeros(self.n_layers, x.size(0), self.hidden_dim))
         c_0 = Variable(torch.zeros(self.n_layers, x.size(0), self.hidden_dim))
         output, (hn, cn) = self.lstm(x, (h_0, c_0)) 

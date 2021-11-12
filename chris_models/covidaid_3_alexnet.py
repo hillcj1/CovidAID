@@ -25,6 +25,7 @@ class DenseNet121(nn.Module):
 
 
     def forward(self, x):
+        x = self.densenet121(x)
         x = self.alexnet(x)
         b = x.shape[0]
         x = torch.reshape(x, (b, int(2000 / b)))
