@@ -25,7 +25,7 @@ class DenseNet121(nn.Module):
         self.hidden_dim = 1000
         self.n_layers = 2
 
-        self.lstm = torch.nn.LSTM(1000, hidden_dim, n_layers, batch_first=True)
+        self.rnn = torch.nn.RNN(1000, hidden_dim, n_layers, batch_first=True)
         self.fc1 = torch.nn.Linear(hidden_dim, out_size)
         self.sig = torch.nn.Sigmoid()
 
@@ -34,9 +34,8 @@ class DenseNet121(nn.Module):
         x = self.densenet121(x)
         x = x[:, :, np.newaxis]
 
-        h_0 = Variable(torch.zeros(self.n_layers, x.size(0), self.hidden_dim))
-        c_0 = Variable(torch.zeros(self.n_layers, x.size(0), self.hidden_dim))
-        output, (hn, cn) = self.lstm(x, (h_0, c_0)) 
+        hidden = Variable(torch.zeros(self.n_layers, x.size(0), self.hidden_dim))
+        output, hidden = self.rnn(x, hidden) 
         out = output.contiguous().view(-1, self.hidden_dim) 
         out = self.relu(out)
 

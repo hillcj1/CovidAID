@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torchvision
 import torchvision.models as models
+import numpy as np
 
 class DenseNet121(nn.Module):
     """Model modified.
@@ -26,9 +27,11 @@ class DenseNet121(nn.Module):
 
     def forward(self, x):
         x = self.densenet121(x)
+        x = x[:, :, np.newaxis]
+
         x = self.alexnet(x)
-        b = x.shape[0]
-        x = torch.reshape(x, (b, int(2000 / b)))
+
+        x = x[:, :, 0]
         x = self.fc1(x)
         x = self.sig(x)
         return x
