@@ -40,7 +40,7 @@ class DenseNet121(nn.Module):
         out = output.contiguous().view(-1, self.hidden_dim) 
         out = self.relu(out)
 
-        out = out[:, :, 0]
+        x = x.view(x.shape[0], x.size(1) * x.size(2))
 
         out = self.fc1(out)
         out = self.sig(out)

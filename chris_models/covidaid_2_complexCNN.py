@@ -59,7 +59,7 @@ class DenseNet121(nn.Module):
         x = self.relu(x)
         x = self.batch4(x)
 
-        x = x[:, :, 0]
+        x = x.view(x.shape[0], x.size(1) * x.size(2))
         x = self.fc1(x)
         x = self.relu(x)
         x = self.fc2(x)
