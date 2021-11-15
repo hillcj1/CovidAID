@@ -19,16 +19,16 @@ class DenseNet121(nn.Module):
         self.densenet121 = torchvision.models.densenet121(pretrained=True)
         num_ftrs = self.densenet121.classifier.in_features
 
-        self.conv1 = torch.nn.Conv2d(1000, 128, 1, 1)
-        self.conv2 = torch.nn.Conv2d(128, 64, 1, 1)
-        self.conv3 = torch.nn.Conv2d(64, 32, 1, 1)
-        self.conv4 = torch.nn.Conv2d(32, 16, 1, 1)
+        self.conv1 = torch.nn.Conv1d(1000, 128, 1, 1)
+        self.conv2 = torch.nn.Conv1d(128, 64, 1, 1)
+        self.conv3 = torch.nn.Conv1d(64, 32, 1, 1)
+        self.conv4 = torch.nn.Conv1d(32, 16, 1, 1)
         self.relu = torch.nn.ReLU()
-        self.batch1 = torch.nn.BatchNorm2d(128)
-        self.batch2 = torch.nn.BatchNorm2d(64)
-        self.batch3 = torch.nn.BatchNorm2d(32)
-        self.batch4 = torch.nn.BatchNorm2d(16)
-        self.fc1 = torch.nn.Linear(64, 64)
+        self.batch1 = torch.nn.BatchNorm1d(128)
+        self.batch2 = torch.nn.BatchNorm1d(64)
+        self.batch3 = torch.nn.BatchNorm1d(32)
+        self.batch4 = torch.nn.BatchNorm1d(16)
+        self.fc1 = torch.nn.Linear(16, 64)
         self.fc2 = torch.nn.Linear(64, 64)
         self.fc3 = torch.nn.Linear(64, out_size)
         self.dropout = torch.nn.Dropout(0.5)
@@ -37,8 +37,8 @@ class DenseNet121(nn.Module):
 
     def forward(self, x):
         x = self.densenet121(x)
-
         x = x[:, :, np.newaxis]
+
         x = self.conv1(x)
         x = self.dropout(x)
         x = self.relu(x)
