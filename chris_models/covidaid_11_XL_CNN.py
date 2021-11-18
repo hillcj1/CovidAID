@@ -12,7 +12,7 @@ class DenseNet121(nn.Module):
         self.densenet121 = torchvision.models.densenet121(pretrained=True)
         num_ftrs = self.densenet121.classifier.in_features
 
-        self.conv1 = torch.nn.Conv1d(num_ftrs, 128, kernel_size=1, stride=1)
+        self.conv1 = torch.nn.Conv1d(1000, 128, kernel_size=1, stride=1)
         self.conv2 = torch.nn.Conv1d(128, 128, kernel_size=1, stride=1)
         self.conv3 = torch.nn.Conv1d(128, 128, kernel_size=1, stride=1)
         self.conv4 = torch.nn.Conv1d(128, 256, kernel_size=1, stride=1)
@@ -22,7 +22,7 @@ class DenseNet121(nn.Module):
         self.conv8 = torch.nn.Conv1d(256, 256, kernel_size=1, stride=1)
         self.conv9 = torch.nn.Conv1d(256, 256, kernel_size=1, stride=1)
         self.conv10 = torch.nn.Conv1d(256, 512, kernel_size=1, stride=1)
-        self.conv11 = torch.nn.Conv1d(512, 512, kernel_size=, stride=1)
+        self.conv11 = torch.nn.Conv1d(512, 512, kernel_size=1, stride=1)
 
         self.relu = torch.nn.ReLU()
 
@@ -40,6 +40,7 @@ class DenseNet121(nn.Module):
 
     def forward(self, x):
         x = self.densenet121(x)
+        x = x[:, :, np.newaxis]
         x = self.conv1(x)
         x = self.batch1(x)
         x = self.relu(x)
