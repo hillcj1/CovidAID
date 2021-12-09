@@ -64,7 +64,7 @@ class ChestXrayDataSetTest(Dataset):
 
 
 class ChestXrayDataSet(Dataset):
-    def __init__(self, image_list_file, transform=None, combine_pneumonia=False):
+    def __init__(self, image_list_file, transform=None, combine_pneumonia=False, cpu=False):
         """
         Create the Data Loader.
         Since class 3 (Covid) has limited data, dataset size will be accordingly at train time.
@@ -77,6 +77,7 @@ class ChestXrayDataSet(Dataset):
             combine_pneumonia: True for combining Baterial and Viral Pneumonias into one class
         """
         self.NUM_CLASSES = 3 if combine_pneumonia else 4
+        self.cpu = cpu
 
         # Set of images for each class
         image_names = [[] for _ in range(self.NUM_CLASSES)]
@@ -101,7 +102,10 @@ class ChestXrayDataSet(Dataset):
             self.num_normal = int(self.num_covid * covid_factor)
             self.num_pneumonia = int(self.num_covid * covid_factor)
             self.total = self.num_covid + self.num_pneumonia + self.num_normal
-            self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_pneumonia, self.num_covid]).unsqueeze(0).cuda() / self.total
+            if not cpu:
+                self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_pneumonia, self.num_covid]).unsqueeze(0).cuda() / self.total
+            else:
+                self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_pneumonia, self.num_covid]).unsqueeze(0) / self.total
             self.loss_weight_plus = 1.0 - self.loss_weight_minus
         else:
             covid_factor = 5.0
@@ -109,7 +113,10 @@ class ChestXrayDataSet(Dataset):
             self.num_viral = int(self.num_covid * covid_factor)
             self.num_bact = int(self.num_covid * covid_factor)
             self.total = self.num_covid + self.num_viral + self.num_bact + self.num_normal
-            self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_bact, self.num_viral, self.num_covid]).unsqueeze(0).cuda() / self.total
+            if not cpu:
+                self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_bact, self.num_viral, self.num_covid]).unsqueeze(0).cuda() / self.total
+            else:
+                self.loss_weight_minus = torch.FloatTensor([self.num_normal, self.num_bact, self.num_viral, self.num_covid]).unsqueeze(0) / self.total
             self.loss_weight_plus = 1.0 - self.loss_weight_minus
 
         # print (self.loss_weight_plus, self.loss_weight_minus)
@@ -141,7 +148,7 @@ class ChestXrayDataSet(Dataset):
             return v
 
         image_name = None
-        # print (index, self.partitions, len(self), sum([len(cnames) for cnames in self.image_names]))
+        #print (index, len(self.partitions), self.NUM_CLASSES, sum([len(cnames) for cnames in self.image_names]))
         if index < self.partitions[0]:
             # Return a covid image
             data_idx = index
@@ -171,13 +178,17 @@ class ChestXrayDataSet(Dataset):
         """
         Binary weighted cross-entropy loss for each class
         """
-        weight_plus = torch.autograd.Variable(self.loss_weight_plus.repeat(1, target.size(0)).view(-1, self.loss_weight_plus.size(1)).cuda())
-        weight_neg = torch.autograd.Variable(self.loss_weight_minus.repeat(1, target.size(0)).view(-1, self.loss_weight_minus.size(1)).cuda())
+        if not self.cpu:
+            weight_plus = torch.autograd.Variable(self.loss_weight_plus.repeat(1, target.size(0)).view(-1, self.loss_weight_plus.size(1)).cuda())
+            weight_neg = torch.autograd.Variable(self.loss_weight_minus.repeat(1, target.size(0)).view(-1, self.loss_weight_minus.size(1)).cuda())
+        else:
+            weight_plus = torch.autograd.Variable(self.loss_weight_plus.repeat(1, target.size(0)).view(-1, self.loss_weight_plus.size(1)))
+            weight_neg = torch.autograd.Variable(self.loss_weight_minus.repeat(1, target.size(0)).view(-1, self.loss_weight_minus.size(1)))
 
         loss = output
         pmask = (target >= 0.5).data
         nmask = (target < 0.5).data
-        
+
         epsilon = 1e-15
         loss[pmask] = (loss[pmask] + epsilon).log() * weight_plus[pmask]
         loss[nmask] = (1-loss[nmask] + epsilon).log() * weight_plus[nmask]

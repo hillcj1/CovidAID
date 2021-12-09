@@ -27,13 +27,16 @@ from covidaid import CovidAID
 from tqdm import tqdm
 
 class Trainer:
-    def __init__ (self, local_rank=None, checkpoint=None, combine_pneumonia=False):
+    def __init__ (self, local_rank=None, checkpoint=None, combine_pneumonia=False, cpu=False):
         """
         Trainer for the CovidAID
         """
         self.distributed = True if local_rank is not None else False
+        self.cpu = cpu
         print ("Distributed training %s" % ('ON' if self.distributed else 'OFF'))
-        if self.distributed:
+        if cpu:
+            pass
+        elif self.distributed:
             raise NotImplementedError("Currently distributed training not supported")
             self.device = torch.cuda.device('cuda', local_rank)
         else:
@@ -42,13 +45,16 @@ class Trainer:
         # Using 2 classes for pneumonia vs 1 class
         self.combine_pneumonia = combine_pneumonia
 
-        # self.net = CovidAID().to(self.device)
-        self.net = CovidAID(combine_pneumonia).cuda()
+        if cpu:
+            self.net = CovidAID(combine_pneumonia)
+        else:
+            self.net = CovidAID(combine_pneumonia).cuda()
+
         if self.distributed:
             self.net = torch.nn.parallel.DistributedDataParallel(self.net,
                                                             device_ids=[local_rank],
                                                             output_device=local_rank)
-        
+
         # load model
         if checkpoint is not None:
             self.load_model(checkpoint)
@@ -70,7 +76,9 @@ class Trainer:
                                             transforms.Lambda
                                             (lambda crops: torch.stack([normalize(crop) for crop in crops]))
                                         ]),
-                                        combine_pneumonia=self.combine_pneumonia)
+                                        combine_pneumonia=self.combine_pneumonia,
+                                        cpu=self.cpu)
+
         if self.distributed:
             sampler = DistributedSampler(train_dataset)
             train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE,
@@ -89,7 +97,8 @@ class Trainer:
                                             transforms.Lambda
                                             (lambda crops: torch.stack([normalize(crop) for crop in crops]))
                                         ]),
-                                        combine_pneumonia=self.combine_pneumonia)
+                                        combine_pneumonia=self.combine_pneumonia,
+                                        cpu=self.cpu)
         if self.distributed:
             sampler = DistributedSampler(val_dataset)
             val_loader = DataLoader(dataset=val_dataset, batch_size=BATCH_SIZE,
@@ -117,8 +126,9 @@ class Trainer:
             for i, (inputs, target) in tqdm(enumerate(train_loader), total=len(train_dataset)/BATCH_SIZE):
                 # inputs = inputs.to(self.device)
                 # target = target.to(self.device)
-                inputs = inputs.cuda()
-                target = target.cuda()
+                if not self.cpu:
+                    inputs = inputs.cuda()
+                    target = target.cuda()
 
                 # Shape of input == [BATCH_SIZE, NUM_CROPS=19, CHANNELS=3, HEIGHT=224, WIDTH=244]
                 bs, n_crops, c, h, w = inputs.size()
@@ -127,9 +137,9 @@ class Trainer:
                 target = torch.autograd.Variable(target)
                 preds = self.net(inputs).view(bs, n_crops, -1).mean(dim=1)
 
-                # loss = torch.sum(torch.abs(preds - target) ** 2)    
-                loss = train_dataset.loss(preds, target)  
-                # exit()          
+                # loss = torch.sum(torch.abs(preds - target) ** 2)
+                loss = train_dataset.loss(preds, target)
+                # exit()
                 tot_loss += float(loss.data)
 
                 optimizer.zero_grad()
@@ -139,16 +149,18 @@ class Trainer:
             tot_loss /= len(train_dataset)
 
             # Clear cache
-            torch.cuda.empty_cache()
-            
+            if not self.cpu:
+                torch.cuda.empty_cache()
+
             # Running on validation set
             self.net.eval()
             val_loss = 0.0
             for i, (inputs, target) in tqdm(enumerate(val_loader), total=len(val_dataset)/BATCH_SIZE):
                 # inputs = inputs.to(self.device)
                 # target = target.to(self.device)
-                inputs = inputs.cuda()
-                target = target.cuda()
+                if not self.cpu:
+                    inputs = inputs.cuda()
+                    target = target.cuda()
 
                 # Shape of input == [BATCH_SIZE, NUM_CROPS=19, CHANNELS=3, HEIGHT=224, WIDTH=244]
                 bs, n_crops, c, h, w = inputs.size()
@@ -158,14 +170,15 @@ class Trainer:
 
                 preds = self.net(inputs).view(bs, n_crops, -1).mean(1)
                 # loss = torch.sum(torch.abs(preds - target) ** 2)
-                loss = val_dataset.loss(preds, target) 
-                
+                loss = val_dataset.loss(preds, target)
+
                 val_loss += float(loss.data)
 
             val_loss /= len(val_dataset)
 
             # Clear cache
-            torch.cuda.empty_cache()
+            if not self.cpu:
+                torch.cuda.empty_cache()
 
             # logging statistics
             timestamp = str(datetime.datetime.now()).split('.')[0]
@@ -186,7 +199,7 @@ class Trainer:
 
             model_path = os.path.join(save_path, 'epoch_%d.pth'%(epoch+1))
             self.save_model(model_path)
-            
+
         print ('Finished Training')
 
     def predict(self, TEST_IMAGE_LIST, BATCH_SIZE=64):
@@ -216,8 +229,12 @@ class Trainer:
                                 shuffle=True, num_workers=8, pin_memory=True)
 
         # initialize the ground truth and output tensor
-        gt = torch.FloatTensor().cuda()
-        pred = torch.FloatTensor().cuda()
+        if self.cpu:
+            gt = torch.FloatTensor()
+            pred = torch.FloatTensor()
+        else:
+            gt = torch.FloatTensor().cuda()
+            pred = torch.FloatTensor().cuda()
 
         # switch to evaluate mode
         self.net.eval()
@@ -225,8 +242,9 @@ class Trainer:
         for i, (inputs, target) in tqdm(enumerate(test_loader), total=len(test_loader)):
             # inputs = inputs.to(self.device)
             # target = target.to(self.device)
-            inputs = inputs.cuda()
-            target = target.cuda()
+            if not self.cpu:
+                inputs = inputs.cuda()
+                target = target.cuda()
             gt = torch.cat((gt, target), 0)
 
             # Shape of input == [BATCH_SIZE, NUM_CROPS=19, CHANNELS=3, HEIGHT=224, WIDTH=244]
@@ -258,7 +276,7 @@ class Trainer:
         # Plot ROC scores
         self.plot_ROC_curve(gt, pred, labels, roc_path)
 
-        # Treat the max. output as prediction. 
+        # Treat the max. output as prediction.
         # Plot Confusion Matrix
         gt = gt.argmax(axis=1)
         pred = pred.argmax(axis=1)
@@ -272,7 +290,7 @@ class Trainer:
         for test_file in glob.glob(os.path.join(TEST_DIR, '*.txt')):
             print (test_file)
             gt, pred = self.predict(test_file, BATCH_SIZE)
-            # Treat the max. output as prediction. 
+            # Treat the max. output as prediction.
             gt = gt.argmax(axis=1)
             pred = pred.argmax(axis=1)
             f1 = f1_score(gt, pred, average='macro')
@@ -288,7 +306,7 @@ class Trainer:
         plt.ylabel("Ground Truth")
         matplotlib.rcParams.update({'font.size': 14})
         plt.savefig('%s_norm.png' % cm_path, pad_inches = 0, bbox_inches='tight')
-        
+
         cm = confusion_matrix(y_true, y_pred)
         # Finding the annotations
         cm = cm.tolist()
@@ -321,7 +339,7 @@ class Trainer:
         for y, pred, label in zip(y_true.transpose(), y_pred.transpose(), labels):
             print('The AUROC of {0:} is {1:.4f}'.format(label, roc_auc_score(y, pred)))
 
-    def plot_ROC_curve(self, y_true, y_pred, labels, roc_path): 
+    def plot_ROC_curve(self, y_true, y_pred, labels, roc_path):
         """
         Plots the ROC curve from prediction scores
 
@@ -392,11 +410,11 @@ class Trainer:
     def save_model(self, checkpoint_path, model=None):
         if model is None: model = self.net
         torch.save(model.state_dict(), checkpoint_path)
-    
+
     def load_model(self, checkpoint_path, model=None):
         print ("Loading model from %s" % checkpoint_path)
         if model is None: model = self.net
-        model.load_state_dict(torch.load(checkpoint_path))
+        model.load_state_dict(torch.load(checkpoint_path, map_location='cpu'))
 
 
 if __name__ == '__main__':
@@ -412,6 +430,8 @@ if __name__ == '__main__':
     parser.add_argument("--bs", type=int, default=8)
     parser.add_argument("--cm_path", type=str, default='plots/cm')
     parser.add_argument("--roc_path", type=str, default='plots/roc')
+    parser.add_argument("--cpu", action='store_true', default=False)
+    parser.add_argument("--epochs", type=int, default=300)
 
     # parser.add_argment("--torch_version", "--tv", choices=["0.3", "new"], default="0.3")
     args = parser.parse_args()
@@ -425,12 +445,12 @@ if __name__ == '__main__':
     if args.local_rank is not None:
         torch.distributed.init_process_group(backend='nccl')
 
-    trainer = Trainer(local_rank=args.local_rank, checkpoint=args.checkpoint, combine_pneumonia=args.combine_pneumonia)
+    trainer = Trainer(local_rank=args.local_rank, checkpoint=args.checkpoint, combine_pneumonia=args.combine_pneumonia, cpu=args.cpu)
     if args.mode == 'test':
         trainer.evaluate(TEST_IMAGE_LIST, cm_path=args.cm_path, roc_path=args.roc_path)
     elif args.mode == 'train':
         assert args.save is not None
-        trainer.train(TRAIN_IMAGE_LIST, VAL_IMAGE_LIST, BATCH_SIZE=args.bs, NUM_EPOCHS=300, LR=args.lr,
+        trainer.train(TRAIN_IMAGE_LIST, VAL_IMAGE_LIST, BATCH_SIZE=args.bs, NUM_EPOCHS=args.epochs, LR=args.lr,
                         start_epoch=args.start, save_path=args.save, freeze_feature_layers=args.freeze)
     else:
         trainer.F1(TEST_DIR, 'models/samples.txt')
